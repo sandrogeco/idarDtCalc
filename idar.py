@@ -145,17 +145,24 @@ def isrpLoadDem(demFilename,sensors,iRange):
 
     #plt.show()
     z[np.isnan(z)] = 0
+    zDemOrg = z
+    xDemOrg = xu
+    yDemOrg = yu
+    if (iRange>0):
+        xL = np.where(xu > (np.min(sensors['X']) - iRange))[0][0]
+        xR = np.where(xu < (np.max(sensors['X']) + iRange))[0][-1]
+        yB = np.where(yu < (np.max(sensors['Y']) - iRange))[0][0]
+        yT = np.where(yu < (np.min(sensors['Y']) + iRange))[0][0]
 
-    xL = np.where(xu > (np.min(sensors['X']) - iRange))[0][0]
-    xR = np.where(xu > (np.max(sensors['X']) + iRange))[0][0]
-    yB = np.where(yu < (np.max(sensors['Y']) - iRange))[0][0]
-    yT = np.where(yu < (np.min(sensors['Y']) + iRange))[0][0]
-
-    xu = xu[xL:xR]
-    yu = yu[yT:yB]
-    z = z[yT:yB, xL:xR]
-
-    return xu, yu, z
+        xu = xu[xL:xR]
+        yu = yu[yT:yB]
+        z = z[yT:yB, xL:xR]
+    else:
+        xL=0
+        xR=len(xu)
+        yT=0
+        yB=len(yu)
+    return xu, yu, z,xDemOrg,yDemOrg,zDemOrg, xL,xR,yT,yB
 
 
 def isrpTravelTimesComput(x0, y0, xS, yS, x1, y1, xdem ,ydem ,zdem,sRes,dMin,dMax):
@@ -324,13 +331,15 @@ def isrpSeisTravelTimesComput(x0, y0, xS, yS,zS, x1, y1, xdem ,ydem ,zdem,sRes,d
     dPlane = (sqrt((xS - xdem[x0]) ** 2 + (yS - ydem[y0]) ** 2))
     #
     if((dPlane>dMin)and(dPlane<dMax)):
-        tT = (sqrt((xS - xdem[x0]) ** 2 + (yS - ydem[y0]) ** 2)+(zS-zdem[y0,x0])**2)
+        tT = sqrt((xS - xdem[x0]) ** 2 + (yS - ydem[y0]) ** 2+(zS-zdem[y0,x0])**2)
     else:
         tT=-1
+    if tT>100000:
+        print('pippo')
     return tT
 
 
-def isrpParallelDemTravelDt(i,xdem, ydem, zdem, sensors:sensorsType,sRes,dMin,dMax):
+def isrpParallelDemTravelDt(i,xdem, ydem, zdem, sensors:sensorsType,sRes,dMin,dMax,seism):
     tT = np.zeros(( len(xdem), len(ydem)),dtype=np.float16)
 
     dx = xdem[1] - xdem[0]
@@ -353,21 +362,25 @@ def isrpParallelDemTravelDt(i,xdem, ydem, zdem, sensors:sensorsType,sRes,dMin,dM
         print("s " +str(i) +"xi "+str(xi))
         for yi in range(0,len(ydem)):
             if (zdem[yi, xi]>0):
-                tT[xi, yi] = isrpTravelTimesComput(xi, yi,xS, yS, x1, y1,xdem,ydem,zdem,sRes,dMin,dMax)
-                #tT[xi, yi] = isrpSeisTravelTimesComput(xi, yi, xS, yS,zS, x1, y1, xdem, ydem, zdem, sRes, dMin, dMax)
+                if seism:
+                    zdemS=10000-zdem
+                    tT[xi, yi] = isrpTravelTimesComput(xi, yi, xS, yS, x1, y1, xdem, ydem, zdemS, sRes, dMin, dMax)
+                    #tT[xi, yi] = isrpSeisTravelTimesComput(xi, yi, xS, yS,zS, x1, y1, xdem, ydem, zdem, sRes, dMin, dMax)
+                else:
+                    tT[xi, yi] = isrpTravelTimesComput(xi, yi, xS, yS, x1, y1, xdem, ydem, zdem, sRes, dMin, dMax)
             else :
                 tT[xi, yi] = -1
     return tT
 
 
-def isrpDemTravelDt(demFilename, xdem, ydem, zdem, sensors:sensorsType,sRes, dMin,dMax):
+def isrpDemTravelDt(demFilename, xdem, ydem, zdem, sensors:sensorsType,sRes, dMin,dMax,seism=False):
 
     dT=np.zeros((len(sensors), len(sensors), len(xdem), len(ydem)),dtype=np.float16)
     T = np.zeros((len(sensors), len(xdem), len(ydem)),dtype=np.float16)
 
     num_cores = multiprocessing.cpu_count()
 
-    T[:]=Parallel(n_jobs=num_cores-1)(delayed(isrpParallelDemTravelDt)(i,xdem, ydem, zdem, sensors,sRes,dMin,dMax) for i in range(0,len(sensors)))
+    T[:]=Parallel(n_jobs=num_cores-1)(delayed(isrpParallelDemTravelDt)(i,xdem, ydem, zdem, sensors,sRes,dMin,dMax,seism) for i in range(0,len(sensors)))
 
     for i in range(0,len(sensors)):
         for ii in range(i+1, len(sensors)):
@@ -377,12 +390,12 @@ def isrpDemTravelDt(demFilename, xdem, ydem, zdem, sensors:sensorsType,sRes, dMi
                     if (T[ii,xi,yi]>0):
                         dT[i, ii, xi, yi] = T[ii,xi,yi]-T[i,xi,yi]
                     else :
-                        dT[i, ii, xi, yi] = -1
+                        dT[i, ii, xi, yi] = np.nan
     np.savez(demFilename+'dT',dT=dT,T=T,dMin=dMin,dMax=dMax)
     return dT
 
 
-def isrpArrange (demFileName,dT,T,sensors,shift,sToSFactor,rs,corrM):
+def isrpArrange (demFileName,dT,T,sensors,shift,sToSFactor,rs,corrM,defCorr):
     dS = dT * sToSFactor*rs
     S = T * sToSFactor
     sShift=int(shift*sToSFactor)
@@ -416,12 +429,12 @@ def isrpArrange (demFileName,dT,T,sensors,shift,sToSFactor,rs,corrM):
 
 
 
-def isrpArrange2 (demFileName,dT,T,sensors,sShift,sWnd,sToSFactor):
+def isrpArrange2 (demFileName,dT,T,sensors,sShift,sWnd,sToSFactor,corrM,defCorr):
     dS = dT * sToSFactor
     S = T * sToSFactor
     #sWnd=int(wnd*sToSFactor)
     #sShift=int(shift*sToSFactor)
-    dMap=[]
+    dMap={}
     sMap=[]
     dsMin = np.nanmin(dS)
     dsMax = np.nanmax(dS)
@@ -429,27 +442,62 @@ def isrpArrange2 (demFileName,dT,T,sensors,sShift,sWnd,sToSFactor):
     jMax=sShift*step
     for i in range(0, len(sensors)):
         dj = []
-        for j in range(-sWnd+sShift, jMax,sShift):
+        for j in range(-sWnd + sShift, jMax, sShift):
             print("isprArrange Elaborating T " + str(j))
-
             dj.append(np.where((S[i, :, :] >= j) & (S[i, :, :] < j + sWnd)))
         sMap.append(dj)
 
     for i in range(0,len(sensors)):
-        dii=[]
+
         for ii in range(0, len(sensors)):
             print("isprArrange dElaborating sernsor couple " + str(i) + " " + str(ii))
-            dj=[]
-            for j in range(int(dsMin-1),int(dsMax+1)):
-              #  print("isprArrange Elaborating T " + str(j))
-                dj.append(np.where((dS[i,ii,:,:] >= j) & (dS[i,ii,:,:]< j+1)))
-            dii.append(dj)
-        dMap.append(dii)
+            if corrM[i,ii]>0:
+                a={}
+                for j in range(-defCorr,defCorr):
+                  #  print("isprArrange Elaborating T " + str(j))
+                    x=(np.where((dS[i,ii,:,:] >= j) & (dS[i,ii,:,:]< j+1)))
+                    if len(x[0])>0:
+                        a[j]=x
+                dMap[i, ii]=a
 
 
 
     return dMap, sMap, dsMin, dsMax
 
+def isrpArrange3 (demFileName,dT,T,sensors,sShift,sWnd,sToSFactor,corrM,defCorr):
+    dS = dT * sToSFactor
+    S = T * sToSFactor
+    #sWnd=int(wnd*sToSFactor)
+    #sShift=int(shift*sToSFactor)
+    dMap={}
+    sMap=[]
+    dsMin = np.nanmin(dS)
+    dsMax = np.nanmax(dS)
+    step = 1+int((1+int(np.nanmax(S)/sWnd))*sWnd / sShift)
+    jMax=sShift*step
+    for i in range(0, len(sensors)):
+        dj = []
+        for j in range(-sWnd + sShift, jMax, sShift):
+            print("isprArrange Elaborating T " + str(j))
+            dj.append(np.where((S[i, :, :] >= j)))
+        sMap.append(dj)
+
+    for i in range(0,len(sensors)):
+
+        for ii in range(0, len(sensors)):
+            print("isprArrange dElaborating sernsor couple " + str(i) + " " + str(ii))
+            if corrM[i,ii]>0:
+                a={}
+                for j in range(-defCorr,defCorr):
+                  #  print("isprArrange Elaborating T " + str(j))
+                    x=(np.where((dS[i,ii,:,:] >= j) & (dS[i,ii,:,:]< j+1)))
+                    if len(x[0])>0:
+                        a[j]=x
+                dMap[i, ii]=a
+
+
+
+    return dMap, sMap, dsMin, dsMax
 
 def isrpGetWyData(sensors,ti_str,tf_str):
     #tmin.strftime('%Y-%m-%d%%20%H:%M:00'), tmax.strftime('%Y-%m-%d%%20%H:%M:%S')
