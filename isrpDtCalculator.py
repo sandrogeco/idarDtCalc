@@ -11,26 +11,29 @@ from idar import *
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/CROPRL/CROPRL.asc'
 # sensors = isrpLoadSensorParameters('ADN/CROPRL','/home/sandro/Documents/idarDtCalc/idarDtCalc')
 
+demFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/rogerpass-ritaglio.asc'
 
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/CROPRL/CROPRL.asc'
 # sensors = isrpLoadSensorParameters('ADN/CROPRL','/home/sandro/Documents/idarDtCalc/idarDtCalc')
-# dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/WBYFDY/WBYFDY.asc'
-# sensors = isrpLoadSensorParameters('ADN/WBYFDY','/home/sandro/Documents/idarDtCalc/idarDtCalc')
+dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/WBYFDY/WBYFDY.asc'
+sensors = isrpLoadSensorParameters('ADN/WBYFDY','/home/sandro/Documents/idarDtCalc/idarDtCalc')
+
 #
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/SMTMNX/SMTMNX.asc'
 # sensors = isrpLoadSensorParameters('ADN/SMTMNX','/home/sandro/Documents/idarDtCalc/idarDtCalc')
+
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/RPSRPC/RPSRPC.asc'
 # sensors = isrpLoadSensorParameters('ADN/RPSRPC','/home/sandro/Documents/idarDtCalc/idarDtCalc')
 #
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/OMIV/THERUI/THERUI.asc'
 # sensors = isrpLoadSensorParameters('OMIV/THERUI','/home/sandro/Documents/idarDtCalc/idarDtCalc')
 
+# dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/RSPLPB/RSPLPB.asc'
+# sensors = isrpLoadSensorParameters('ADN/RSPLPB','/home/sandro/Documents/idarDtCalc/idarDtCalc')
+
 # dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/RSPMNX/RSPMNX.asc'
 # sensors = isrpLoadSensorParameters('ADN/RSPMNX','/home/sandro/Documents/idarDtCalc/idarDtCalc')
 
-demFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/rogerpass-ritaglio.asc'
-dtFilename ='/home/sandro/Documents/idarDtCalc/idarDtCalc/dem/ADN/RSPLPB/RSPLPB.asc'
-sensors = isrpLoadSensorParameters('ADN/RSPLPB','/home/sandro/Documents/idarDtCalc/idarDtCalc')
 
 
 
@@ -45,7 +48,8 @@ sRes=50
 sRes1=170
 dMin=0
 dMax=4000
-rit=-1
+ritx=-1
+rity=-1
 s=True
 
 #infrasound
@@ -58,14 +62,15 @@ sRes=150
 sRes1=170
 dMin=0
 dMax=10000
-rit=4000
+ritx=4000
+rity=4000
 s=False
 
 #####
 fig = plt.figure(num=1,figsize=(12, 8))
 #
 # ax1 = fig.add_subplot(121)
-xdem, ydem, zdem,xDemOrg,yDemOrg,zDemOrg,xL,xR,yT,yB= isrpLoadDem(demFilename,sensors,rit)
+xdem, ydem, zdem,xDemOrg,yDemOrg,zDemOrg,xL,xR,yT,yB= isrpLoadDem(demFilename,sensors,ritx,rity)
 # plt.contourf(xdem,ydem, zdem, cmap="gray",levels=list(range(0, 5000, 60)))
 # plt.title("Elevation Contours ")
 # cbar = plt.colorbar(orientation="horizontal")

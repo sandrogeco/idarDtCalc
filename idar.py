@@ -68,7 +68,7 @@ def isrpLoadSensorParameters(network,path):
     return sensors
 
 
-def isrpLoadDem(demFilename,sensors,iRange):
+def isrpLoadDem(demFilename,sensors,iRangex,iRangey):
     f = open(demFilename, 'r')
     whl = f.read()
     whl = whl.split('\n')
@@ -148,20 +148,28 @@ def isrpLoadDem(demFilename,sensors,iRange):
     zDemOrg = z
     xDemOrg = xu
     yDemOrg = yu
-    if (iRange>0):
-        xL = np.where(xu > (np.min(sensors['X']) - iRange))[0][0]
-        xR = np.where(xu < (np.max(sensors['X']) + iRange))[0][-1]
-        yB = np.where(yu < (np.max(sensors['Y']) - iRange))[0][0]
-        yT = np.where(yu < (np.min(sensors['Y']) + iRange))[0][0]
+    if (iRangex>0):
+        xL = np.where(xu > (np.min(sensors['X']) - iRangex))[0][0]
+        xR = np.where(xu < (np.max(sensors['X']) + iRangex))[0][-1]
 
         xu = xu[xL:xR]
-        yu = yu[yT:yB]
-        z = z[yT:yB, xL:xR]
+        z = z[:, xL:xR]
+
     else:
         xL=0
         xR=len(xu)
+
+    if (iRangey>0):
+
+        yB = np.where(yu < (np.max(sensors['Y']) - iRangey))[0][0]
+        yT = np.where(yu < (np.min(sensors['Y']) + iRangey))[0][0]
+
+        yu = yu[yT:yB]
+        z = z[yT:yB,:]
+    else:
         yT=0
         yB=len(yu)
+
     return xu, yu, z,xDemOrg,yDemOrg,zDemOrg, xL,xR,yT,yB
 
 
