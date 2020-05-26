@@ -67,6 +67,81 @@ def isrpLoadSensorParameters(network,path):
         i += 1
     return sensors
 
+def isrpLoadDem2(demFilename,sensors,iRangex,iRangey):
+    f = open(demFilename, 'r')
+    whl = f.read()
+    whl = whl.split('\n')
+    # header
+    hdr = whl[0:5]
+    deminfo = np.dtype({'names': ('ncols', 'nrows', 'xllcorner', 'yllcorner', 'cellsize'),
+                        'formats': ('f8', 'f8', 'f8', 'f8', 'f8')})
+    nInfo = len(hdr)
+    info = np.zeros(1, dtype=deminfo)
+    s = hdr[0].split()
+    info['ncols'] = float(s[1])
+    s = hdr[1].split()
+    info['nrows'] = float(s[1])
+    s = hdr[2].split()
+    info['xllcorner'] = float(s[1])
+    s = hdr[3].split()
+    info['yllcorner'] = float(s[1])
+    s = hdr[4].split()
+    info['cellsize'] = float(s[1])
+    xu = np.linspace(info['xllcorner'], info['xllcorner'] + info['cellsize'] * info['ncols'], info['ncols'])
+    yu = np.linspace(info['yllcorner'], info['yllcorner'] + info['cellsize'] * info['nrows'], info['nrows'])
+    xu = xu[:, 0]
+    yu = yu[:, 0]
+    yu = yu[::-1]
+    print(yu.min())
+    print(yu.max())
+    print(yu[0])
+    # # elevation matrix
+    bb = whl[6:len(whl)]
+    idx = 0
+    for i in range(0, len(yu)):
+
+        bw = bb[i].split(' ')
+        bw.remove('')
+        aa = np.asarray(bw, dtype=np.float32)
+        if idx == 0:
+            z = aa
+        else:
+            z = vstack((z, aa))
+
+        idx += 1
+
+    print('ncols: ', str(len(xu)))
+    print('nrows: ', str(len(yu)))
+    print('zmatrix: ' + z.shape[0].__str__() + ' x ' + z.shape[1].__str__())
+
+    # plt.show()
+    z[np.isnan(z)] = 0
+    zDemOrg = z
+    xDemOrg = xu
+    yDemOrg = yu
+    if (iRangex > 0):
+        xL = np.where(xu > (np.min(sensors['X']) - iRangex))[0][0]
+        xR = np.where(xu < (np.max(sensors['X']) + iRangex))[0][-1]
+
+        xu = xu[xL:xR]
+        z = z[:, xL:xR]
+    else:
+        xL = 0
+        xR = len(xu)
+
+    if (iRangey > 0):
+
+        yB = np.where(yu < (np.max(sensors['Y']) - iRangey))[0][0]
+        yT = np.where(yu < (np.min(sensors['Y']) + iRangey))[0][0]
+
+        yu = yu[yT:yB]
+        z = z[yT:yB, :]
+    else:
+        yT = 0
+        yB = len(yu)
+
+    return xu, yu, z, xDemOrg, yDemOrg, zDemOrg, xL, xR, yT, yB
+
 
 def isrpLoadDem(demFilename,sensors,iRangex,iRangey):
     f = open(demFilename, 'r')
@@ -105,6 +180,9 @@ def isrpLoadDem(demFilename,sensors,iRangex,iRangey):
 
     xu=xu[:,0]
     yu = yu[:, 0]
+    print(yu.min())
+    print(yu.max())
+    print(yu[0])
     #print(info['nrows'])
 
     # elevation matrix
@@ -387,7 +465,8 @@ def isrpDemTravelDt(demFilename, xdem, ydem, zdem, sensors:sensorsType,sRes, dMi
     T = np.zeros((len(sensors), len(xdem), len(ydem)),dtype=np.float16)
 
     num_cores = multiprocessing.cpu_count()
-
+    print(xdem.shape)
+    print(ydem.shape)
     T[:]=Parallel(n_jobs=num_cores-1)(delayed(isrpParallelDemTravelDt)(i,xdem, ydem, zdem, sensors,sRes,dMin,dMax,seism) for i in range(0,len(sensors)))
 
     for i in range(0,len(sensors)):
